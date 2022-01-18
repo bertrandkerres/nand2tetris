@@ -1,0 +1,75 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/05/CPU.hdl
+
+/**
+ * The Hack CPU (Central Processing unit), consisting of an ALU,
+ * two registers named A and D, and a program counter named PC.
+ * The CPU is designed to fetch and execute instructions written in 
+ * the Hack machine language. In particular, functions as follows:
+ * Executes the inputted instruction according to the Hack machine 
+ * language specification. The D and A in the language specification
+ * refer to CPU-resident registers, while M refers to the external
+ * memory location addressed by A, i.e. to Memory[A]. The inM input 
+ * holds the value of this location. If the current instruction needs 
+ * to write a value to M, the value is placed in outM, the address 
+ * of the target location is placed in the addressM output, and the 
+ * writeM control bit is asserted. (When writeM==0, any value may 
+ * appear in outM). The outM and writeM outputs are combinational: 
+ * they are affected instantaneously by the execution of the current 
+ * instruction. The addressM and pc outputs are clocked: although they 
+ * are affected by the execution of the current instruction, they commit 
+ * to their new values only in the next time step. If reset==1 then the 
+ * CPU jumps to address 0 (i.e. pc is set to 0 in next time step) rather 
+ * than to the address resulting from executing the current instruction. 
+ */
+
+CHIP CPU {
+
+    IN  inM[16],         // M value input  (M = contents of RAM[A])
+        instruction[16], // Instruction for execution
+        reset;           // Signals whether to re-start the current
+                         // program (reset==1) or continue executing
+                         // the current program (reset==0).
+
+    OUT outM[16],        // M value output
+        writeM,          // Write to M? 
+        addressM[15],    // Address in data memory (of M)
+        pc[15];          // address of next instruction
+
+    PARTS:
+    Mux16(a=instruction, b=aluOut, sel=instruction[15], out=aRegIn);
+	Not(in=instruction[15], out=isAInstr);
+	And(a=instruction[15], b=instruction[3], out=writeM);	// Output writeM if C-instruction and destM
+	Or(a=isAInstr, b=instruction[5], out=loadA);		// Load A if (A instruction or destA)
+	ARegister(in=aRegIn, load=loadA, out=aRegOut, out[0..14]=addressM);
+	Mux16(a=aRegOut, b=inM, sel=instruction[12], out=aOrMVal);		// Select ALU A/M input
+
+	And(a=instruction[15], b=instruction[4], out=loadD);	// Load D if C-instruction and destD
+	DRegister(in=aluOut, load=loadD, out=dVal);			
+	
+	// Make sure the ALU outputs A for A-instructions
+	Mux(a=true, b=instruction[11], sel=instruction[15], out=zx);	// zx and nx should be 1 if A-instruction or (C-instruction and bit set)
+	Mux(a=true, b=instruction[10], sel=instruction[15], out=nx);
+	Mux(a=false, b=instruction[9], sel=instruction[15], out=zy);	// zy, ny, f, no should be 1 if and only if (C-instruction and bit set)
+	Mux(a=false, b=instruction[8], sel=instruction[15], out=ny);
+	Mux(a=false, b=instruction[7], sel=instruction[15], out=f);
+	Mux(a=false, b=instruction[6], sel=instruction[15], out=no);
+	ALU(x=dVal, y=aOrMVal, zx=zx, nx=nx, zy=zy, ny=ny, f=f, no=no, out=aluOut, out=outM, zr=isZero, ng=isNeg);
+
+	Or(a=isZero, b=isNeg, out=isLE);	// aluOut <= 0
+	Not(in=isLE, out=isPos);			// aluOut > 0
+	
+	And(a=instruction[15], b=instruction[0], out=j3);	// Instruction[0..2] are jump bits if C-instruction
+	And(a=instruction[15], b=instruction[1], out=j2);
+	And(a=instruction[15], b=instruction[2], out=j1);
+	And(a=isPos, b=j3, out=jmpPos);
+	And(a=isZero, b=j2, out=jmpZero);
+	And(a=isNeg, b=j1, out=jmpNeg);
+	Or(a=jmpPos, b=jmpZero, out=jmpGE);
+	Or(a=jmpGE, b=jmpNeg, out=jmp);	// (isPos and j3) or (isZero and j2) or (isNeg and j1)
+	And(a=jmp, b=instruction[15], out=cAndJmp);		//--> if true, load PC with A register
+	Not(in=cAndJmp, out=inc);			// Else: Increment PC; reset overrides load or increment
+	PC(in=aRegOut, reset=reset, inc=inc, load=jmp, out[0..14]=pc);
+}

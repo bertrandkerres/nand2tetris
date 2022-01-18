@@ -1,0 +1,18 @@
+jun 15, 2020 12:03:52 EM HackAssembler run
+FIN: @2		0000000000000010
+
+jun 15, 2020 12:03:52 EM HackAssembler run
+FIN: D=A		1110110000010000
+
+jun 15, 2020 12:03:52 EM HackAssembler run
+FIN: @3		0000000000000011
+
+jun 15, 2020 12:03:52 EM HackAssembler run
+FIN: D=D+A		1110000010010000
+
+jun 15, 2020 12:03:52 EM HackAssembler run
+FIN: @0		0000000000000000
+
+jun 15, 2020 12:03:52 EM HackAssembler run
+FIN: M=D		1110001100001000
+

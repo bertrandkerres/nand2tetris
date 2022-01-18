@@ -1,0 +1,9 @@
+# nand2tetris course material
+tools/*
+literature/*
+
+
+*.class
+*.jar
+*.project
+*.prefs
